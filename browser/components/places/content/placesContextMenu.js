@@ -23,6 +23,9 @@ document.addEventListener(
         case "placesContext_openLinks:tabs":
           PlacesUIUtils.openSelectionInTabs(event);
           break;
+        case "placesContext_openBookmarkContainer:group":
+          PlacesUIUtils.openSelectionInTabGroup(event);
+          break;
       }
     });
 

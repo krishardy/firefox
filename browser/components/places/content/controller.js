@@ -647,7 +647,14 @@ PlacesController.prototype = {
       let openBookmarksItem = document.getElementById(
         "placesContext_openBookmarkContainer:tabs"
       );
-      for (let menuItem of [openContainerInTabsItem, openBookmarksItem]) {
+      let openBookmarksInGroupItem = document.getElementById(
+        "placesContext_openBookmarkContainer:group"
+      );
+      for (let menuItem of [
+        openContainerInTabsItem,
+        openBookmarksItem,
+        openBookmarksInGroupItem,
+      ]) {
         if (!menuItem.hidden) {
           var containerToUse =
             this._view.selectedNode || this._view.result.root;
@@ -719,6 +726,20 @@ PlacesController.prototype = {
       aEvent,
       this._view
     );
+  },
+
+  /**
+   * Opens the links in the selected folder in a new tab group.
+   *
+   * @param {object} aEvent
+   *   The associated event.
+   */
+  openSelectionInTabGroup: function PC_openSelectionInTabGroup(aEvent) {
+    var node = this._view.selectedNode;
+    if (!node) {
+      node = this._view.result.root;
+    }
+    PlacesUIUtils.openMultipleLinksInTabGroup(node, aEvent, this._view);
   },
 
   /**

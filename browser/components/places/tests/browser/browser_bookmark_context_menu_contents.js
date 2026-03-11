@@ -292,6 +292,7 @@ add_task(async function test_bookmark_contextmenu_contents() {
 add_task(async function test_empty_contextmenu_contents() {
   let optionItems = [
     "placesContext_openBookmarkContainer:tabs",
+    "placesContext_openBookmarkContainer:group",
     "placesContext_new:bookmark",
     "placesContext_new:folder",
     "placesContext_new:separator",
@@ -350,6 +351,7 @@ add_task(async function test_separator_contextmenu_contents() {
 add_task(async function test_folder_contextmenu_contents() {
   let optionItems = [
     "placesContext_openBookmarkContainer:tabs",
+    "placesContext_openBookmarkContainer:group",
     "placesContext_show_folder:info",
     "placesContext_deleteFolder",
     "placesContext_cut",
@@ -381,6 +383,44 @@ add_task(async function test_folder_contextmenu_contents() {
   }, optionItems);
 });
 
+add_task(async function test_folder_contextmenu_contents_tab_groups_disabled() {
+  Services.prefs.setBoolPref("browser.tabs.groups.enabled", false);
+
+  let optionItems = [
+    "placesContext_openBookmarkContainer:tabs",
+    "placesContext_show_folder:info",
+    "placesContext_deleteFolder",
+    "placesContext_cut",
+    "placesContext_copy",
+    "placesContext_paste_group",
+    "placesContext_new:bookmark",
+    "placesContext_new:folder",
+    "placesContext_new:separator",
+    "placesContext_sortBy:name",
+    "placesContext_showAllBookmarks",
+    "toggle_PersonalToolbar",
+    "show-other-bookmarks_PersonalToolbar",
+  ];
+
+  await checkContextMenu(async function () {
+    let folder = await PlacesUtils.bookmarks.insert({
+      type: PlacesUtils.bookmarks.TYPE_FOLDER,
+      parentGuid: PlacesUtils.bookmarks.toolbarGuid,
+    });
+
+    let toolbarNode = getToolbarNodeForItemGuid(folder.guid);
+    let contextMenu = document.getElementById("placesContext");
+    return openContextMenuWithRetry(contextMenu, () => {
+      EventUtils.synthesizeMouseAtCenter(toolbarNode, {
+        button: 2,
+        type: "contextmenu",
+      });
+    });
+  }, optionItems);
+
+  Services.prefs.clearUserPref("browser.tabs.groups.enabled");
+});
+
 add_task(async function test_sidebar_folder_contextmenu_contents() {
   let optionItems = [
     "placesContext_show_folder:info",
@@ -388,6 +428,7 @@ add_task(async function test_sidebar_folder_contextmenu_contents() {
     "placesContext_cut",
     "placesContext_copy",
     "placesContext_openBookmarkContainer:tabs",
+    "placesContext_openBookmarkContainer:group",
     "placesContext_sortBy:name",
     "placesContext_paste_group",
     "placesContext_new:bookmark",
@@ -768,6 +809,7 @@ add_task(async function test_sidebar_mixed_bookmarks_contextmenu_contents() {
 add_task(async function test_library_noselection_contextmenu_contents() {
   let optionItems = [
     "placesContext_openBookmarkContainer:tabs",
+    "placesContext_openBookmarkContainer:group",
     "placesContext_new:bookmark",
     "placesContext_new:folder",
     "placesContext_new:separator",

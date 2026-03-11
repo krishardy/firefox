@@ -755,7 +755,7 @@ export var PlacesUIUtils = {
    */
   openTabset(aItemsToOpen, aEvent, aWindow) {
     if (!aItemsToOpen.length) {
-      return;
+      return [];
     }
 
     let browserWindow = getBrowserWindow(aWindow);
@@ -803,7 +803,7 @@ export var PlacesUIUtils = {
         features,
         args
       );
-      return;
+      return [];
     }
 
     var loadInBackground = where == "tabshifted";
@@ -825,6 +825,7 @@ export var PlacesUIUtils = {
         );
       }
     }
+    return tabs;
   },
 
   /**
@@ -862,6 +863,49 @@ export var PlacesUIUtils = {
         window.updateTelemetry(urlsToOpen);
       }
       this.openTabset(urlsToOpen, event, window);
+    }
+  },
+
+  /**
+   * Opens a container's or selected nodes' URLs in a new tab group.
+   *
+   * @param {object | Array} nodeOrNodes
+   *          Contains the node or nodes that we're opening in a tab group
+   * @param {event} event
+   *          The DOM mouse/key event
+   * @param {object} view
+   *          The current view
+   */
+  openMultipleLinksInTabGroup(nodeOrNodes, event, view) {
+    let window = view.ownerWindow;
+    let urlsToOpen = [];
+
+    if (lazy.PlacesUtils.nodeIsContainer(nodeOrNodes)) {
+      urlsToOpen = lazy.PlacesUtils.getURLsForContainerNode(nodeOrNodes);
+    } else {
+      for (var i = 0; i < nodeOrNodes.length; i++) {
+        if (lazy.PlacesUtils.nodeIsURI(nodeOrNodes[i])) {
+          urlsToOpen.push({
+            uri: nodeOrNodes[i].uri,
+            isBookmark: lazy.PlacesUtils.nodeIsBookmark(nodeOrNodes[i]),
+          });
+        }
+      }
+    }
+    if (lazy.OpenInTabsUtils.confirmOpenInTabs(urlsToOpen.length, window)) {
+      if (window.updateTelemetry) {
+        window.updateTelemetry(urlsToOpen);
+      }
+      let tabs = this.openTabset(urlsToOpen, event, window);
+      if (tabs?.length) {
+        let groupLabel = nodeOrNodes.title || "";
+        let browserWindow = getBrowserWindow(window);
+        browserWindow.gBrowser.addTabGroup(tabs, {
+          label: groupLabel,
+          isUserTriggered: true,
+          telemetryUserCreateSource: "bookmarks",
+        });
+      }
     }
   },
 
@@ -1342,6 +1386,13 @@ export var PlacesUIUtils = {
       return true;
     }
 
+    if (
+      item.hasAttribute("hide-if-tab-groups-disabled") &&
+      !Services.prefs.getBoolPref("browser.tabs.groups.enabled", false)
+    ) {
+      return true;
+    }
+
     return false;
   },
 
@@ -1379,6 +1430,16 @@ export var PlacesUIUtils = {
       );
       openContainerInTabs_menuitem.disabled = !openContainerInTabs;
       openContainerInTabs_menuitem.hidden = false;
+      let openContainerInGroup_menuitem = document.getElementById(
+        "placesContext_openBookmarkContainer:group"
+      );
+      if (
+        openContainerInGroup_menuitem &&
+        Services.prefs.getBoolPref("browser.tabs.groups.enabled", false)
+      ) {
+        openContainerInGroup_menuitem.disabled = !openContainerInTabs;
+        openContainerInGroup_menuitem.hidden = false;
+      }
     } else {
       for (let id of [
         "placesContext_open:newtab",
@@ -1513,6 +1574,20 @@ export var PlacesUIUtils = {
     controller.openSelectionInTabs(event);
   },
 
+  openSelectionInTabGroup(event) {
+    let isManaged =
+      !!event.target.parentNode.triggerNode.closest("#managed-bookmarks");
+    let controller;
+    if (isManaged) {
+      controller = this.managedBookmarksController;
+    } else {
+      controller = PlacesUIUtils.getViewForNode(
+        PlacesUIUtils.lastContextMenuTriggerNode
+      ).controller;
+    }
+    controller.openSelectionInTabGroup(event);
+  },
+
   managedBookmarksController: {
     triggerNode: null,
 
@@ -1529,6 +1604,31 @@ export var PlacesUIUtils = {
         }
       }
       PlacesUIUtils.openTabset(items, event, window);
+    },
+
+    openSelectionInTabGroup(event) {
+      let window = event.target.ownerGlobal;
+      let triggerNode = event.target.parentNode.triggerNode;
+      let menuitems = triggerNode.menupopup.children;
+      let items = [];
+      for (let i = 0; i < menuitems.length; i++) {
+        if (menuitems[i].link) {
+          let item = {};
+          item.uri = menuitems[i].link;
+          item.isBookmark = true;
+          items.push(item);
+        }
+      }
+      let tabs = PlacesUIUtils.openTabset(items, event, window);
+      if (tabs?.length) {
+        let groupLabel = triggerNode.label || "";
+        let browserWindow = getBrowserWindow(window);
+        browserWindow.gBrowser.addTabGroup(tabs, {
+          label: groupLabel,
+          isUserTriggered: true,
+          telemetryUserCreateSource: "bookmark_folder",
+        });
+      }
     },
 
     isCommandEnabled(command) {
